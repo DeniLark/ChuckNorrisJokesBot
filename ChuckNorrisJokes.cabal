@@ -18,9 +18,13 @@ extra-doc-files: CHANGELOG.md
 common general
   ghc-options:        -Wall
   build-depends:
+    , aeson
     , base                 ^>=4.17.2.1
     , effectful
     , effectful-th
+    , http-client
+    , http-client-tls
+    , servant
     , servant-client
     , telegram-bot-api
     , telegram-bot-simple
@@ -37,7 +41,9 @@ library
   import:           general
   exposed-modules:  Run
   other-modules:
+    Api
     Bot
+    Bot.ApiHandler
     Bot.AppHandler
     Bot.Effect
     Bot.Error

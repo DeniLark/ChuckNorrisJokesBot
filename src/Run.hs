@@ -1,8 +1,9 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Run (runBot) where
 
-import Bot.AppHandler (appAction, appRunner)
+import Bot.AppHandler
 
 runBot :: IO ()
 runBot = do

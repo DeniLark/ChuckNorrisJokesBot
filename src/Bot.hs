@@ -3,44 +3,52 @@
 
 module Bot where
 
+import Bot.ApiHandler (apiRunner)
+import Bot.Effect (effGetCategories)
 import Control.Applicative ((<|>))
-import Data.Text (Text, pack)
-import System.Environment (getEnv)
-import Telegram.Bot.API (Token (Token), defaultTelegramClientEnv)
+import Control.Monad.IO.Class (liftIO)
+import Data.Text (Text)
+import Network.HTTP.Client (Manager, newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Telegram.Bot.API.GettingUpdates
 import Telegram.Bot.Simple
 import Telegram.Bot.Simple.UpdateParser
 
--- runBot :: IO ()
--- runBot = do
---     token <- Token . pack <$> getEnv "CHUCK_NORRIS_JOKES_BOT"
---     env <- defaultTelegramClientEnv token
---     putStrLn "Bot is running"
---     _ <- startBot bot env
---     pure ()
-
-type Model = ()
+newtype Model = Model {modelManager :: Manager}
 
 data Action
     = Start
+    | GetCategories
     | Echo Text
 
-botApp :: BotApp Model Action
-botApp =
-    BotApp
-        { botInitialModel = ()
-        , botAction = flip updateToAction
-        , botHandler = flip handleAction
-        , botJobs = []
-        }
+botApp :: IO (BotApp Model Action)
+botApp = do
+    m <- newManager tlsManagerSettings
+    pure $
+        BotApp
+            { botInitialModel = Model m
+            , botAction = flip updateToAction
+            , botHandler = flip handleAction
+            , botJobs = []
+            }
 
-handleAction :: Model -> Action -> Eff Action ()
+handleAction :: Model -> Action -> Eff Action Model
 handleAction model = \case
-    Start -> model <# reply (toReplyMessage "Start message")
+    GetCategories ->
+        model <# do
+            liftIO $ do
+                categories <- apiRunner (modelManager model) effGetCategories
+                mapM_ print categories
+            pure ()
+    Start -> do
+        model
+            <# do
+                reply (toReplyMessage "Start message")
     Echo msg -> model <# reply (toReplyMessage msg)
 
 updateToAction :: Model -> Update -> Maybe Action
 updateToAction _ =
     parseUpdate $
         (Start <$ command "start")
+            <|> GetCategories <$ command "categories"
             <|> (Echo <$> plainText)

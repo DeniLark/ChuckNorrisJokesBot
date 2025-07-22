@@ -37,7 +37,10 @@ runAppIO = interpret_ $ \case
                 Right _ -> pure ()
 
 appAction :: (AppEff :> es, IOE :> es, Error AppError :> es) => Eff es ()
-appAction = effGetClientEnv >>= effRunBot botApp
+appAction = do
+    env <- effGetClientEnv
+    bot <- liftIO botApp
+    effRunBot bot env
 
 appRunner ::
     Eff '[AppEff, Error AppError, Environment, IOE] a ->
