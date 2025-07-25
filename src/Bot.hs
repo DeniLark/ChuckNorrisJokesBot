@@ -3,8 +3,10 @@
 
 module Bot where
 
+import Api (Joke (value))
 import Bot.ApiHandler (apiRunner)
-import Bot.Effect (effGetCategories)
+import Bot.Effect (effGetCategories, effGetCategoryJoke)
+import Bot.Keyboard (categoriesToBot)
 import Control.Applicative ((<|>))
 import Control.Monad.IO.Class (liftIO)
 import Data.Text (Text)
@@ -19,7 +21,7 @@ newtype Model = Model {modelManager :: Manager}
 data Action
     = Start
     | GetCategories
-    | Echo Text
+    | GeCategoryJoke Text
 
 botApp :: IO (BotApp Model Action)
 botApp = do
@@ -35,20 +37,29 @@ botApp = do
 handleAction :: Model -> Action -> Eff Action Model
 handleAction model = \case
     GetCategories ->
-        model <# do
-            liftIO $ do
-                categories <- apiRunner (modelManager model) effGetCategories
-                mapM_ print categories
-            pure ()
-    Start -> do
         model
             <# do
-                reply (toReplyMessage "Start message")
-    Echo msg -> model <# reply (toReplyMessage msg)
+                eithCategories <- liftIO $ apiRunner (modelManager model) effGetCategories
+                case eithCategories of
+                    Left _ -> pure () -- !!
+                    Right cats -> categoriesToBot cats
+
+                pure ()
+    Start ->
+        model <# reply (toReplyMessage "Start message")
+    GeCategoryJoke msg ->
+        model <# do
+            eithCategory <-
+                liftIO $
+                    apiRunner (modelManager model) $
+                        effGetCategoryJoke msg
+            case eithCategory of
+                Left _ -> pure () -- !!
+                Right cats -> reply (toReplyMessage (value cats))
 
 updateToAction :: Model -> Update -> Maybe Action
 updateToAction _ =
     parseUpdate $
         (Start <$ command "start")
             <|> GetCategories <$ command "categories"
-            <|> (Echo <$> plainText)
+            <|> (GeCategoryJoke <$> plainText)

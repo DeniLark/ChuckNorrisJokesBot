@@ -47,6 +47,7 @@ library
     Bot.AppHandler
     Bot.Effect
     Bot.Error
+    Bot.Keyboard
 
   -- other-extensions:
   hs-source-dirs:   src
